@@ -261,7 +261,7 @@ The retrieved chunks and similarity scores are displayed for transparency.
 
 ### Question
 
-> What are the responsibilities of implementing partners?
+> What are the three specific entities or units responsible for assessing the technical merits of submitted proposals during a competitive selection procedure??
 
 ### Answer
 
