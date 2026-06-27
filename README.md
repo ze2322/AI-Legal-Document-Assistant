@@ -162,7 +162,7 @@ docker build -t legal-rag .
 ## Run the Docker Container
 
 ```bash
-docker run -p 8501:8501 legal-rag
+docker run -p 8501:8501 -e OLLAMA_HOST=http://host.docker.internal:11434 legal-rag
 ```
 
 > **Note:** Ollama must be installed and running on the host machine before starting the application.
