@@ -1,6 +1,8 @@
 # 📄 AI Legal Document Assistant
 
-An AI-powered **Retrieval-Augmented Generation (RAG)** application that allows users to upload **PDF** or **DOCX** legal documents and ask natural language questions about their contents using a locally hosted **Llama 3.2** model through **Ollama**.
+An AI-powered **Retrieval-Augmented Generation (RAG)** application that lets you upload **PDF** or **DOCX** legal documents and ask natural language questions about their contents, using a locally hosted **Llama 3.2** model through **Ollama**.
+
+Everything runs locally — the document never leaves the machine.
 
 ---
 
@@ -26,16 +28,19 @@ The AI Legal Document Assistant automatically:
 
 # Features
 
--  Upload PDF and DOCX documents
--  Automatic document parsing and indexing
--  Semantic search using FAISS
--  Retrieval-Augmented Generation (RAG)
--  Local inference using Ollama (Llama 3.2)
--  Conversation history
--  Streaming typing effect
--  Retrieved source chunks with similarity scores
--  Streamlit web interface
--  Docker support
+- Upload PDF and DOCX documents (DOCX tables are extracted too, not just paragraphs)
+- Automatic document parsing and indexing
+- Semantic search using FAISS (cosine similarity on normalised vectors)
+- Retrieval-Augmented Generation (RAG)
+- Local inference using Ollama (Llama 3.2)
+- Token-by-token streaming answers, straight from Ollama
+- Conversation history
+- Retrieved source chunks with similarity scores
+- Index persisted to disk and restored on restart
+- Fully configurable through environment variables
+- Unit-tested service layer (73 tests) that runs without a GPU or Ollama
+- Streamlit web interface
+- Docker support
 
 ---
 
@@ -47,10 +52,26 @@ The AI Legal Document Assistant automatically:
 - Llama 3.2
 - FAISS
 - Sentence Transformers
-- LangChain
+- LangChain Text Splitters
 - PyMuPDF
 - python-docx
 - NumPy
+
+---
+
+# Architecture
+
+```text
+Upload  ->  DocumentParser  ->  TextChunker  ->  EmbeddingService  ->  VectorStore
+                                                                          |
+Question  ->  EmbeddingService  ->  VectorStore.search  ->  top-k chunks  -+
+                                                               |
+                                                        LLMService  ->  answer
+```
+
+Each stage is a small, independently testable class. `RAGPipeline` wires them
+together and accepts injected collaborators, which is what lets the test suite
+swap in fakes instead of loading real models.
 
 ---
 
@@ -59,26 +80,33 @@ The AI Legal Document Assistant automatically:
 ```text
 AI-Legal-Document-Assistant/
 │
-├── app.py
-├── requirements.txt
+├── app.py                     # Streamlit UI
+├── requirements.txt           # Runtime dependencies
+├── requirements-dev.txt       # Test and lint dependencies
+├── pyproject.toml             # pytest and ruff configuration
 ├── Dockerfile
-├── README.md
 ├── .dockerignore
+├── .env.example               # Documented configuration template
+├── README.md
 │
 ├── services/
-│   ├── parser.py
-│   ├── chunker.py
-│   ├── embeddings.py
-│   ├── vector_store.py
-│   ├── llm.py
-│   └── rag.py
+│   ├── parser.py              # PDF / DOCX text extraction
+│   ├── chunker.py             # Overlapping text splitting
+│   ├── embeddings.py          # Sentence-Transformers embeddings
+│   ├── vector_store.py        # FAISS index, search and persistence
+│   ├── llm.py                 # Ollama chat client
+│   ├── rag.py                 # End-to-end pipeline
+│   └── exceptions.py          # Application error types
 │
 ├── utils/
-│   └── config.py
+│   ├── config.py              # Environment-driven settings
+│   └── logger.py              # Shared logging setup
+│
+├── tests/                     # pytest suite
 │
 ├── data/
-│   ├── documents/
-│   └── faiss_index/
+│   ├── documents/             # Sample documents
+│   └── faiss_index/           # Generated index (git-ignored)
 │
 └── screenshots/
     ├── Screenshot 2026-06-27 224909.png
@@ -95,8 +123,7 @@ AI-Legal-Document-Assistant/
 ## 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/AI-Legal-Document-Assistant.git
-
+git clone https://github.com/ze2322/AI-Legal-Document-Assistant.git
 cd AI-Legal-Document-Assistant
 ```
 
@@ -160,14 +187,69 @@ ollama serve
 
 ## 8. Run the Application
 
+Open your browser at:
+
 ```bash
 streamlit run app.py
 ```
 
-Open your browser at:
-
 ```
 http://localhost:8501
+```
+
+---
+
+# Configuration
+
+All settings are optional and read from environment variables, or from a `.env`
+file in the project root. Copy `.env.example` to get started:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence-Transformers model used for embeddings |
+| `OLLAMA_MODEL` | `llama3.2` | Ollama model used to generate answers |
+| `OLLAMA_HOST` | *(client default)* | Ollama server URL, e.g. `http://host.docker.internal:11434` |
+| `CHUNK_SIZE` | `1000` | Maximum characters per chunk |
+| `CHUNK_OVERLAP` | `200` | Characters shared between neighbouring chunks |
+| `TOP_K` | `3` | Number of chunks retrieved per question |
+| `LLM_TEMPERATURE` | `0.3` | Sampling temperature |
+| `LLM_MAX_TOKENS` | `512` | Maximum tokens generated per answer |
+| `LLM_TIMEOUT_SECONDS` | `120` | Request timeout for Ollama |
+| `INDEX_DIR` | `data/faiss_index` | Where the FAISS index is persisted |
+| `MAX_UPLOAD_MB` | `25` | Maximum accepted upload size |
+| `LOG_LEVEL` | `INFO` | Logging verbosity |
+
+> Changing `MAX_UPLOAD_MB` also means updating `maxUploadSize` in
+> `.streamlit/config.toml`, which is Streamlit's own upload cap.
+
+---
+
+# Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+The default run uses fake embedding and LLM services, so it needs neither a GPU
+nor a running Ollama instance and finishes in a few seconds.
+
+Tests that exercise the real embedding model are marked `integration` and are
+deselected by default. Run them explicitly (the first run downloads model
+weights):
+
+```bash
+pytest -m integration
+```
+
+Lint checks:
+
+```bash
+ruff check .
 ```
 
 ---
@@ -188,19 +270,37 @@ docker run -p 8501:8501 -e OLLAMA_HOST=http://host.docker.internal:11434 legal-r
 
 > **Note:** Ollama must already be installed and running on the host machine.
 
+Ollama runs on the **host**, not in the container. `host.docker.internal`
+resolves on Docker Desktop for Windows and macOS. On Linux, either run the
+container with `--add-host=host.docker.internal:host-gateway` or point it at the
+host directly:
+
+```bash
+docker run -p 8501:8501 -e OLLAMA_HOST=http://172.17.0.1:11434 legal-rag
+```
+
 ---
 
 # How It Works
 
-1. Upload a PDF or DOCX document.
-2. The document is automatically parsed.
-3. The text is split into chunks.
-4. Sentence Transformers creates embeddings.
-5. FAISS builds a vector index.
-6. Ask a question.
-7. The most relevant chunks are retrieved.
-8. Llama 3.2 generates an answer.
-9. The answer and retrieved source chunks are displayed.
+1. **Parsing** — PyMuPDF extracts text page by page from PDFs; `python-docx`
+   reads paragraphs *and* table cells from DOCX files, because legal documents
+   often put obligations in tables. A document with no extractable text (a
+   scanned image, for example) is rejected with a clear message rather than
+   producing an empty index.
+2. **Chunking** — `RecursiveCharacterTextSplitter` splits on paragraph, line and
+   sentence boundaries first, falling back to characters. Overlap keeps
+   sentences that straddle a boundary retrievable.
+3. **Embedding** — `all-MiniLM-L6-v2` produces 384-dimensional unit-norm
+   vectors. The model loads lazily on first use, so start-up stays fast.
+4. **Indexing** — `IndexFlatIP` over normalised vectors makes the inner product
+   equal to cosine similarity. Chunks are persisted as JSON rather than pickle,
+   so loading an index never executes arbitrary code.
+5. **Retrieval** — the question is embedded with the same model, and the top-k
+   most similar chunks are returned with their scores.
+6. **Generation** — the retrieved chunks are formatted into a labelled context
+   block and sent to Llama 3.2 with a system prompt that forbids answering from
+   outside that context. Tokens are streamed straight to the UI.
 
 ---
 
@@ -248,12 +348,13 @@ The retrieved chunks and similarity scores are displayed for transparency.
 
 # Sample Questions
 
-- What are the three specific entities or units responsible for assessing the technical merits of submitted proposals during a competitive selection procedure??
+- What are the three specific entities or units responsible for assessing the technical merits of submitted proposals during a competitive selection procedure?
 - Summarize this document.
 - Who can become an implementing partner?
 - What are the eligibility requirements?
 - Explain the grant award procedure.
-- What records should be retained?
+- What records should be retained, and for how long?
+- What are the key obligations mentioned in the agreement?
 
 ---
 
@@ -261,7 +362,7 @@ The retrieved chunks and similarity scores are displayed for transparency.
 
 ### Question
 
-What are the three specific entities or units responsible for assessing the technical merits of submitted proposals during a competitive selection procedure??
+What are the responsibilities of implementing partners?
 
 ### Answer
 
@@ -271,13 +372,24 @@ The application also displays the retrieved source chunks and similarity scores 
 
 ---
 
+# Limitations
+
+- Scanned PDFs are not supported; they would need an OCR step.
+- One document is indexed at a time — uploading a new file replaces the previous
+  index, so answers never mix sources.
+- Conversation history is not fed back into the prompt, so follow-up questions
+  need to be self-contained.
+- Chat history lives in the Streamlit session and is lost on refresh.
+
+---
+
 # Future Improvements
 
-- True streaming responses directly from Ollama
-- Support for multiple uploaded documents
-- Persistent vector database
-- Multi-turn conversational memory
+- OCR fallback for scanned documents
+- Support for multiple uploaded documents, with per-document filtering
+- Multi-turn conversational memory (query rewriting for follow-up questions)
+- Re-ranking retrieved chunks before generation
+- Persistent chat history
+- Citation highlighting inside generated answers
 - Cloud deployment
 - User authentication
-- Citation highlighting inside generated answers
-

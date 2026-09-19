@@ -1,0 +1,6 @@
+[server]
+# Keep Streamlit's own upload cap aligned with MAX_UPLOAD_MB in the app config.
+maxUploadSize = 25
+
+[browser]
+gatherUsageStats = false

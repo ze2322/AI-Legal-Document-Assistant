@@ -1,13 +1,31 @@
 FROM python:3.11-slim
 
+# Keep Python output unbuffered so container logs appear immediately, and skip
+# writing .pyc files into the image layer.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
 WORKDIR /app
+
+# Copy requirements first so the dependency layer is cached across code changes.
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
 
-RUN pip install --upgrade pip
+# Run as a non-root user.
+RUN useradd --create-home --uid 1000 appuser \
+    && mkdir -p /app/data/faiss_index \
+    && chown -R appuser:appuser /app
+USER appuser
 
-RUN pip install -r requirements.txt
+# Ollama runs on the host, not in this container.
+ENV OLLAMA_HOST=http://host.docker.internal:11434
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"
+
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501"]

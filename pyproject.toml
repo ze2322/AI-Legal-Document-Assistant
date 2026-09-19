@@ -1,0 +1,32 @@
+[project]
+name = "ai-legal-document-assistant"
+version = "1.0.0"
+description = "A local RAG assistant that answers questions about PDF and DOCX legal documents."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra -q --strict-markers -m 'not integration'"
+markers = [
+    "integration: tests that load the real embedding model or contact Ollama (deselected by default)",
+]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = ["venv", "data"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # import sorting
+    "B",   # bugbear
+    "UP",  # pyupgrade
+    "W",   # pycodestyle warnings
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]

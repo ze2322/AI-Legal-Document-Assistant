@@ -1,15 +1,30 @@
+# Virtual environments
 venv/
-__pycache__/
-*.pyc
-*.pyo
+.venv/
+env/
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors
 .vscode/
 .idea/
+*.swp
+.DS_Store
 
-data/faiss_index/
-
+# Secrets and local config
 .env
 
-.pytest_cache/
+# Generated index (rebuilt from the uploaded document)
+data/faiss_index/
 
+# Logs and archives
 *.log
+*.rar
+*.zip
