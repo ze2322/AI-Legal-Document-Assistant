@@ -1,5 +1,10 @@
 # 📄 AI Legal Document Assistant
 
+[![tests](https://github.com/ze2322/AI-Legal-Document-Assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/ze2322/AI-Legal-Document-Assistant/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Code style: ruff](https://img.shields.io/badge/lint-ruff-261230.svg)](https://docs.astral.sh/ruff/)
+
 An AI-powered **Retrieval-Augmented Generation (RAG)** application that lets you upload **PDF** or **DOCX** legal documents and ask natural language questions about their contents, using a locally hosted **Llama 3.2** model through **Ollama**.
 
 Everything runs locally — the document never leaves the machine.
@@ -38,7 +43,7 @@ The AI Legal Document Assistant automatically:
 - Retrieved source chunks with similarity scores
 - Index persisted to disk and restored on restart
 - Fully configurable through environment variables
-- Unit-tested service layer (73 tests) that runs without a GPU or Ollama
+- Unit-tested service layer: 73 tests, of which 71 run with no GPU, no model download and no Ollama process
 - Streamlit web interface
 - Docker support
 
@@ -393,3 +398,9 @@ The application also displays the retrieved source chunks and similarity scores 
 - Citation highlighting inside generated answers
 - Cloud deployment
 - User authentication
+
+---
+
+# License
+
+Released under the [MIT License](LICENSE).
