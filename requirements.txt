@@ -10,7 +10,8 @@ httpx~=0.28
 faiss-cpu~=1.14
 sentence-transformers~=5.6
 langchain-text-splitters~=1.1
-numpy~=2.5
+# numpy 2.5 requires Python 3.12, and this project supports 3.11 upward.
+numpy~=2.4
 
 # Document parsing
 PyMuPDF~=1.27
